@@ -365,6 +365,38 @@
     font-size: 0.72rem;
   }
 
+  /* Data toolbar */
+  .data-toolbar {
+    position: fixed;
+    top: 14px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+    z-index: 15;
+  }
+  .data-toolbar button {
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: #1a1d2e;
+    color: #aaa;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .data-toolbar button:hover { border-color: #555; color: #ddd; }
+  .data-toolbar .save-indicator {
+    font-size: 0.68rem;
+    color: #4a4;
+    align-self: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .data-toolbar .save-indicator.visible { opacity: 1; }
+
   .pulse { animation: pulse 2s infinite; }
   @keyframes pulse {
     0%, 100% { opacity: 1; }
@@ -390,6 +422,13 @@
   <div class="header">
     <h1>MIRROR – Meningioma Research Unit</h1>
     <p>Collaboration Map of Subprojects & Z-Projects</p>
+  </div>
+
+  <div class="data-toolbar" id="dataToolbar">
+    <button id="btnExport" title="Download connections as JSON">Export</button>
+    <button id="btnImport" title="Load connections from JSON file">Import</button>
+    <span class="save-indicator" id="saveIndicator">Saved</span>
+    <input type="file" id="importFile" accept=".json" style="display:none">
   </div>
 
   <div class="canvas-container" id="canvas">
@@ -487,6 +526,115 @@ const projects = [
   { id: 'za', label: 'Z-A', name: 'Heiland / Yabo', type: 'zp',
     desc: 'Central service project for cross-project, multidimensional data integration. Develops AI-powered pattern recognition for biologically and clinically relevant insights. Integrates multi-omics data from all subprojects into a cross-species reference. Provides existing datasets and delivers new biomaterials through surgical affiliation.' },
 ];
+
+// --- SUPABASE CONFIG ---
+const SUPABASE_URL = 'https://rmtebgtworzqzllomaaf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Vj48qlMj6276SB_avTuqeg_ui1R-MVs';
+const API = `${SUPABASE_URL}/rest/v1/connections`;
+const HEADERS = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation'
+};
+
+function showSaved() {
+  const ind = document.getElementById('saveIndicator');
+  if (ind) { ind.textContent = 'Synced'; ind.classList.add('visible'); setTimeout(() => ind.classList.remove('visible'), 1500); }
+}
+
+function showError(msg) {
+  const ind = document.getElementById('saveIndicator');
+  if (ind) { ind.textContent = msg; ind.style.color = '#e55'; ind.classList.add('visible'); setTimeout(() => { ind.classList.remove('visible'); ind.style.color = '#4a4'; }, 2500); }
+}
+
+// --- DATABASE OPERATIONS ---
+async function dbLoad() {
+  try {
+    const res = await fetch(`${API}?select=*&order=id.asc`, { headers: HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = await res.json();
+    connections = rows.map(r => ({ dbId: r.id, from: r.from_node, to: r.to_node, note: r.note || '', direction: r.direction || 'both' }));
+    return true;
+  } catch(e) { console.error('Load failed:', e); showError('Sync failed'); return false; }
+}
+
+async function dbInsert(conn) {
+  try {
+    const res = await fetch(API, {
+      method: 'POST', headers: HEADERS,
+      body: JSON.stringify({ from_node: conn.from, to_node: conn.to, note: conn.note, direction: conn.direction })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = await res.json();
+    if (rows[0]) conn.dbId = rows[0].id;
+    showSaved();
+  } catch(e) { console.error('Insert failed:', e); showError('Save failed'); }
+}
+
+async function dbUpdate(conn) {
+  if (!conn.dbId) return;
+  try {
+    const res = await fetch(`${API}?id=eq.${conn.dbId}`, {
+      method: 'PATCH', headers: HEADERS,
+      body: JSON.stringify({ note: conn.note, direction: conn.direction, updated_at: new Date().toISOString() })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    showSaved();
+  } catch(e) { console.error('Update failed:', e); showError('Save failed'); }
+}
+
+async function dbDelete(conn) {
+  if (!conn.dbId) return;
+  try {
+    const res = await fetch(`${API}?id=eq.${conn.dbId}`, { method: 'DELETE', headers: HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    showSaved();
+  } catch(e) { console.error('Delete failed:', e); showError('Delete failed'); }
+}
+
+// --- POLLING for other users' changes ---
+let pollTimer = null;
+function startPolling() {
+  pollTimer = setInterval(async () => {
+    const oldJson = JSON.stringify(connections.map(c => ({ dbId: c.dbId, from: c.from, to: c.to, note: c.note, direction: c.direction })));
+    await dbLoad();
+    const newJson = JSON.stringify(connections.map(c => ({ dbId: c.dbId, from: c.from, to: c.to, note: c.note, direction: c.direction })));
+    if (oldJson !== newJson) renderAll();
+  }, 8000);
+}
+
+// --- EXPORT / IMPORT (backup) ---
+function exportConnections() {
+  const data = JSON.stringify(connections.map(c => ({ from: c.from, to: c.to, note: c.note, direction: c.direction })), null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `mirror-connections-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importConnections(file) {
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error('Not an array');
+      // Delete all existing, then insert all from file
+      for (const conn of connections) { await dbDelete(conn); }
+      connections = [];
+      for (const item of data) {
+        const conn = { from: item.from, to: item.to, note: item.note || '', direction: item.direction || 'both' };
+        connections.push(conn);
+        await dbInsert(conn);
+      }
+      renderAll();
+    } catch(err) { alert('Invalid JSON file'); }
+  };
+  reader.readAsText(file);
+}
 
 let connections = [];
 let selectedNode = null;
@@ -598,14 +746,22 @@ function renderConnections() {
 
 function renderAll() { renderConnections(); renderNodes(); }
 
-function handleNodeClick(id) {
+async function handleNodeClick(id) {
   if (selectedNode === null) { selectedNode = id; renderAll(); }
   else if (selectedNode === id) { selectedNode = null; renderAll(); }
   else {
     const existingIdx = connections.findIndex(c =>
       (c.from === selectedNode && c.to === id) || (c.from === id && c.to === selectedNode));
     if (existingIdx >= 0) { selectedNode = null; renderAll(); openModal(existingIdx); }
-    else { connections.push({ from: selectedNode, to: id, note: '', direction: 'both' }); const newIdx = connections.length - 1; selectedNode = null; renderAll(); openModal(newIdx); }
+    else {
+      const conn = { from: selectedNode, to: id, note: '', direction: 'both' };
+      connections.push(conn);
+      await dbInsert(conn);
+      const newIdx = connections.length - 1;
+      selectedNode = null;
+      renderAll();
+      openModal(newIdx);
+    }
   }
 }
 
@@ -630,7 +786,7 @@ function openModal(connIdx) {
 
 function closeModal() { modalOverlay.classList.remove('active'); editingConnection = null; }
 
-function initApp() {
+async function initApp() {
   canvas = document.getElementById('canvas');
   svg = document.getElementById('svg');
   modalOverlay = document.getElementById('modalOverlay');
@@ -654,19 +810,34 @@ function initApp() {
     });
   });
 
-  btnSave.addEventListener('click', () => {
+  btnSave.addEventListener('click', async () => {
     if (editingConnection !== null) {
-      connections[editingConnection].note = modalText.value.trim();
+      const conn = connections[editingConnection];
+      conn.note = modalText.value.trim();
       const activeDir = document.querySelector('#directionPicker button.active');
-      connections[editingConnection].direction = activeDir ? activeDir.dataset.dir : 'both';
+      conn.direction = activeDir ? activeDir.dataset.dir : 'both';
+      await dbUpdate(conn);
       renderAll();
     }
     closeModal();
   });
   btnCancel.addEventListener('click', closeModal);
-  btnDelete.addEventListener('click', () => {
-    if (editingConnection !== null) { connections.splice(editingConnection, 1); renderAll(); }
+  btnDelete.addEventListener('click', async () => {
+    if (editingConnection !== null) {
+      const conn = connections[editingConnection];
+      await dbDelete(conn);
+      connections.splice(editingConnection, 1);
+      renderAll();
+    }
     closeModal();
+  });
+
+  // Export/Import buttons
+  document.getElementById('btnExport').addEventListener('click', exportConnections);
+  document.getElementById('btnImport').addEventListener('click', () => document.getElementById('importFile').click());
+  document.getElementById('importFile').addEventListener('change', (e) => {
+    if (e.target.files[0]) importConnections(e.target.files[0]);
+    e.target.value = '';
   });
   modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
   document.addEventListener('keydown', (e) => {
@@ -679,8 +850,10 @@ function initApp() {
   canvas.addEventListener('click', (e) => { if (e.target === canvas || e.target === svg) { selectedNode = null; renderAll(); } });
   window.addEventListener('resize', () => { layoutNodes(); renderAll(); });
 
+  await dbLoad();
   layoutNodes();
   renderAll();
+  startPolling();
 }
 </script>
 </body>
