@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projekt-Verbindungen</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0f1117;
+    color: #e0e0e0;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  .header {
+    text-align: center;
+    padding: 18px 20px 8px;
+    position: relative;
+    z-index: 10;
+  }
+  .header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #f0f0f0;
+    letter-spacing: -0.02em;
+  }
+  .header p {
+    font-size: 0.82rem;
+    color: #888;
+    margin-top: 4px;
+  }
+
+  .canvas-container {
+    position: relative;
+    width: 100vw;
+    height: calc(100vh - 80px);
+  }
+
+  svg.connections-svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+  svg.connections-svg line {
+    pointer-events: stroke;
+    cursor: pointer;
+  }
+  svg.connections-svg line:hover {
+    stroke-width: 4 !important;
+  }
+
+  .node {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    z-index: 5;
+    text-align: center;
+    user-select: none;
+    border: 2.5px solid transparent;
+  }
+  .node:hover {
+    transform: scale(1.1);
+  }
+  .node.selected {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 4px rgba(255,255,255,0.3), 0 0 30px rgba(255,255,255,0.15);
+  }
+  .node .label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  .node .name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 2px;
+    line-height: 1.15;
+    max-width: 100px;
+  }
+
+  .info-panel {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    width: 320px;
+    background: #1a1d2e;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 20px;
+    z-index: 20;
+    display: none;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  }
+  .info-panel.visible { display: block; }
+  .info-panel .info-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #666;
+    margin-bottom: 4px;
+  }
+  .info-panel .info-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin-bottom: 10px;
+  }
+  .info-panel .info-desc {
+    font-size: 0.82rem;
+    color: #aaa;
+    line-height: 1.55;
+  }
+  .info-panel .info-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .info-badge.wp-badge { background: #1a2548; color: #5b8aff; border: 1px solid #3a5aaf; }
+  .info-badge.zp-badge { background: #3a1848; color: #bb5bff; border: 1px solid #8a3aaf; }
+
+  .node.wp { background: radial-gradient(circle at 30% 30%, #2a3a6e, #1a2548); border-color: #3a5aaf; }
+  .node.wp:hover, .node.wp.selected { border-color: #5b8aff; }
+  .node.zp { background: radial-gradient(circle at 30% 30%, #5e2a6e, #3a1848); border-color: #8a3aaf; }
+  .node.zp:hover, .node.zp.selected { border-color: #bb5bff; }
+
+  /* Tooltip on connections */
+  .connection-label {
+    position: absolute;
+    background: #1e2030;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    color: #ccc;
+    max-width: 180px;
+    text-align: center;
+    z-index: 8;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: background 0.15s;
+    line-height: 1.3;
+  }
+  .connection-label:hover {
+    background: #2a2e45;
+    border-color: #555;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: #1a1d2e;
+    border: 1px solid #333;
+    border-radius: 14px;
+    padding: 28px;
+    width: 420px;
+    max-width: 92vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal h2 {
+    font-size: 1.1rem;
+    margin-bottom: 6px;
+    color: #f0f0f0;
+  }
+  .modal .subtitle {
+    font-size: 0.82rem;
+    color: #888;
+    margin-bottom: 16px;
+  }
+  .modal textarea {
+    width: 100%;
+    min-height: 100px;
+    background: #12141f;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #e0e0e0;
+    padding: 12px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+  }
+  .modal textarea:focus { border-color: #5b8aff; }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    justify-content: flex-end;
+  }
+  .modal-actions button {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-cancel { background: #2a2e40; color: #aaa; }
+  .btn-cancel:hover { background: #353a50; }
+  .btn-save { background: #3a5aaf; color: #fff; }
+  .btn-save:hover { background: #4a6acf; }
+  .btn-delete { background: #6e2a2a; color: #faa; }
+  .btn-delete:hover { background: #8a3a3a; }
+
+  /* Instructions bar */
+  .instructions {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1d2e;
+    border: 1px solid #2a2e40;
+    border-radius: 10px;
+    padding: 8px 20px;
+    font-size: 0.78rem;
+    color: #777;
+    z-index: 10;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+  .instructions span { white-space: nowrap; }
+  .instructions .key {
+    display: inline-block;
+    background: #2a2e40;
+    color: #aaa;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.72rem;
+  }
+
+  .pulse {
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>MIRROR – Meningioma Research Unit</h1>
+  <p>Kollaborationskarte der Subprojekte & Z-Projekte</p>
+</div>
+
+<div class="canvas-container" id="canvas">
+  <svg class="connections-svg" id="svg"></svg>
+</div>
+
+<div class="info-panel" id="infoPanel">
+  <div class="info-label" id="infoPanelLabel"></div>
+  <div class="info-badge" id="infoPanelBadge"></div>
+  <div class="info-name" id="infoPanelName"></div>
+  <div class="info-desc" id="infoPanelDesc"></div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">Zusammenarbeit beschreiben</h2>
+    <div class="subtitle" id="modalSubtitle"></div>
+    <textarea id="modalText" placeholder="Beschreibe die Zusammenarbeit zwischen diesen Projekten…"></textarea>
+    <div class="modal-actions">
+      <button class="btn-delete" id="btnDelete" style="margin-right:auto">Entfernen</button>
+      <button class="btn-cancel" id="btnCancel">Abbrechen</button>
+      <button class="btn-save" id="btnSave">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div class="instructions">
+  <span><span class="key">Klick</span> Projekt auswählen</span>
+  <span><span class="key">2× Klick</span> Verbindung erstellen</span>
+  <span><span class="key">Klick auf Linie/Label</span> Notiz bearbeiten</span>
+  <span><span class="key">ESC</span> Auswahl aufheben</span>
+</div>
+
+<script>
+const projects = [
+  { id: 'sp1', label: 'SP 1', name: 'Sahm / Berghaus', type: 'wp',
+    desc: 'Untersucht wirts- und tumorspezifische Treiber der Meningeom-Heterogenität mittels KI-gestützter räumlicher und Einzelzell-Profiling-Methoden. Nutzt ein Archiv von über 6.000 Meningeomen mit Methylierungsdaten. Entwickelt KI-Modelle auf H&E-Schnitten zur molekularen Diagnosebestimmung. Analysiert geschlechts- und altersspezifische Unterschiede in Tumorbiologie und Mikroumgebung.' },
+  { id: 'sp2', label: 'SP 2', name: 'Herold-Mende / Warta', type: 'wp',
+    desc: 'Erforscht geschlechts- und altersbedingte Unterschiede der Tumormikroumgebung und deren Einfluss auf die Therapiesensitivität. Setzt Tumororganoide und Wirkstoff-Screenings ein, um immuntherapeutische Ansätze in vitro zu testen. Phänotypisiert Immuninfiltrate und integriert Multi-Omics-Daten. Stellt eine umfangreiche Biobank mit Patientengewebe und Blutproben bereit.' },
+  { id: 'sp3', label: 'SP 3', name: 'Morrison / Mawrin', type: 'wp',
+    desc: 'Modelliert umwelt- und altersbedingte Meningeom-Treiber anhand von NF2-mutierten Tumoren. Kombiniert strukturelle, zelluläre und Mausmodelle mit Zebrafisch-Studien. Erforscht pädiatrische Meningeome und neue therapeutische Zielstrukturen. Führt metabolomische Analysen durch und untersucht die Rolle des Alterns in der Tumorentstehung.' },
+  { id: 'sp4', label: 'SP 4', name: 'Prinz / Sankowski', type: 'wp',
+    desc: 'Kartiert Herkunft, Schicksal und lokale Interaktionen myeloider Zellsubpopulationen im Meningeom. Nutzt hochdimensionale Techniken wie räumliche und Einzelzell-Sequenzierung. Verwendet transgene Mausmodelle und syngene Meningeom-Modelle für funktionelle Analysen. Liefert Erkenntnisse zur Immunlandschaft des ZNS über Hirntumoren hinaus.' },
+  { id: 'sp5', label: 'SP 5', name: 'Ricklefs / Lamszus', type: 'wp',
+    desc: 'Untersucht extrazelluläre Vesikel (EVs) als Biomarker und Modulatoren der Tumor-Immunzell-Kommunikation bei Meningeom-Patienten. Entwickelt Liquid-Biopsy-Ansätze für die longitudinale Überwachung von zirkulierenden EVs. Analysiert DNA-Methylierungssignaturen zur Tumorklassifikation. Führt Anreicherungs- und Detektionsprotokolle für tumorspezifische EVs ein.' },
+  { id: 'sp6', label: 'SP 6', name: 'Bernhardt / Abdollahi', type: 'wp',
+    desc: 'Reprogrammiert die Tumor-Immun-Mikroumgebung durch Partikelbestrahlung (Protonentherapie). Führt eine systematische radiobiologische Charakterisierung von Meningeomen durch. Untersucht die Evolution der Tumormikroumgebung unter Strahlentherapie. Liefert longitudinale Multiskalen-Daten von bestrahlten Patienten.' },
+  { id: 'sp7', label: 'SP 7', name: 'Reifenberger / Qin / Dietrich', type: 'wp',
+    desc: 'Erforscht die Rolle langer nicht-kodierender RNAs (lncRNAs) in der Meningeom-Evolution und Therapieantwort. Nutzt CODEX-Multiplex-Immunfluoreszenz und Immunrezeptor-Repertoire-Analysen. Führt ex-vivo-Wirkstoffscreenings für personalisierte Behandlungsdesigns durch. Stellt eine der größten Hirntumor-Gewebebanken bereit.' },
+  { id: 'zg', label: 'Z-G', name: 'Sahm / Bludau', type: 'zp',
+    desc: 'Zentrales Serviceprojekt für die standardisierte Datengenerierung und -sammlung der gesamten Forschungsgruppe. Führt Einzelzell- und räumliche Sequenzierung, Long-Read-Sequenzierung und Proteinanalysen durch. Etabliert und pflegt die zentrale MIRROR-Datenbank. Optimiert Protokolle wie snRNA auf FFPE-Proben und RAPID-CNS-Nanopore.' },
+  { id: 'za', label: 'Z-A', name: 'Heiland / Yabo', type: 'zp',
+    desc: 'Zentrales Serviceprojekt für die projektübergreifende, multidimensionale Datenintegration. Entwickelt KI-gestützte Mustererkennung für biologisch und klinisch relevante Erkenntnisse. Integriert Multi-Omics-Daten aller Teilprojekte in eine speziesübergreifende Referenz. Stellt bestehende Datensätze bereit und liefert neue Biomaterialien über die chirurgische Anbindung.' },
+];
+
+let connections = []; // { from, to, note }
+let selectedNode = null;
+let editingConnection = null;
+
+const canvas = document.getElementById('canvas');
+const svg = document.getElementById('svg');
+const modalOverlay = document.getElementById('modalOverlay');
+const modalTitle = document.getElementById('modalTitle');
+const modalSubtitle = document.getElementById('modalSubtitle');
+const modalText = document.getElementById('modalText');
+const btnSave = document.getElementById('btnSave');
+const btnCancel = document.getElementById('btnCancel');
+const btnDelete = document.getElementById('btnDelete');
+
+// --- LAYOUT ---
+function layoutNodes() {
+  const rect = canvas.getBoundingClientRect();
+  const cx = rect.width / 2;
+  const cy = rect.height / 2;
+  const radius = Math.min(cx, cy) * 0.65;
+  const count = projects.length;
+
+  projects.forEach((p, i) => {
+    const angle = (2 * Math.PI * i / count) - Math.PI / 2;
+    p.x = cx + radius * Math.cos(angle);
+    p.y = cy + radius * Math.sin(angle);
+  });
+}
+
+const infoPanel = document.getElementById('infoPanel');
+const infoPanelLabel = document.getElementById('infoPanelLabel');
+const infoPanelBadge = document.getElementById('infoPanelBadge');
+const infoPanelName = document.getElementById('infoPanelName');
+const infoPanelDesc = document.getElementById('infoPanelDesc');
+
+function showInfo(p) {
+  infoPanelLabel.textContent = p.label;
+  infoPanelBadge.textContent = p.type === 'wp' ? 'Subprojekt' : 'Z-Projekt';
+  infoPanelBadge.className = `info-badge ${p.type === 'wp' ? 'wp-badge' : 'zp-badge'}`;
+  infoPanelName.textContent = p.name;
+  infoPanelDesc.textContent = p.desc;
+  infoPanel.classList.add('visible');
+}
+function hideInfo() {
+  infoPanel.classList.remove('visible');
+}
+
+// --- RENDER NODES ---
+function renderNodes() {
+  document.querySelectorAll('.node').forEach(n => n.remove());
+
+  projects.forEach(p => {
+    const el = document.createElement('div');
+    el.className = `node ${p.type}${selectedNode === p.id ? ' selected' : ''}`;
+    el.style.left = (p.x - 60) + 'px';
+    el.style.top = (p.y - 60) + 'px';
+    el.innerHTML = `<div class="label">${p.label}</div><div class="name">${p.name}</div>`;
+    el.addEventListener('click', () => handleNodeClick(p.id));
+    el.addEventListener('mouseenter', () => showInfo(p));
+    el.addEventListener('mouseleave', () => hideInfo());
+    // Double-click edits node name
+    el.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      const newName = prompt('Projektname ändern:', p.name);
+      if (newName !== null && newName.trim()) {
+        p.name = newName.trim();
+        renderAll();
+      }
+    });
+    canvas.appendChild(el);
+  });
+}
+
+// --- RENDER CONNECTIONS ---
+function renderConnections() {
+  svg.innerHTML = '';
+  document.querySelectorAll('.connection-label').forEach(l => l.remove());
+
+  connections.forEach((conn, idx) => {
+    const from = projects.find(p => p.id === conn.from);
+    const to = projects.find(p => p.id === conn.to);
+    if (!from || !to) return;
+
+    // Gradient color based on types
+    const color = (from.type === 'zp' || to.type === 'zp') ? '#8a5abf' : '#4a6aaf';
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', from.x);
+    line.setAttribute('y1', from.y);
+    line.setAttribute('x2', to.x);
+    line.setAttribute('y2', to.y);
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', '2.5');
+    line.setAttribute('stroke-opacity', '0.6');
+    line.setAttribute('stroke-linecap', 'round');
+    line.style.cursor = 'pointer';
+    line.style.pointerEvents = 'stroke';
+    line.addEventListener('click', () => openModal(idx));
+    svg.appendChild(line);
+
+    // Label at midpoint
+    if (conn.note) {
+      const lbl = document.createElement('div');
+      lbl.className = 'connection-label';
+      const mx = (from.x + to.x) / 2;
+      const my = (from.y + to.y) / 2;
+      lbl.style.left = (mx - 80) + 'px';
+      lbl.style.top = (my - 14) + 'px';
+      lbl.style.width = '160px';
+      lbl.textContent = conn.note;
+      lbl.addEventListener('click', () => openModal(idx));
+      canvas.appendChild(lbl);
+    } else {
+      // Small dot indicator
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      const mx = (from.x + to.x) / 2;
+      const my = (from.y + to.y) / 2;
+      circle.setAttribute('cx', mx);
+      circle.setAttribute('cy', my);
+      circle.setAttribute('r', '5');
+      circle.setAttribute('fill', color);
+      circle.setAttribute('fill-opacity', '0.8');
+      circle.style.cursor = 'pointer';
+      circle.style.pointerEvents = 'auto';
+      circle.addEventListener('click', () => openModal(idx));
+      svg.appendChild(circle);
+    }
+  });
+
+  // Temp line if selecting
+  if (selectedNode) {
+    const sp = projects.find(p => p.id === selectedNode);
+    if (sp) {
+      const el = document.querySelector(`.node.selected`);
+    }
+  }
+}
+
+function renderAll() {
+  renderConnections();
+  renderNodes();
+}
+
+// --- INTERACTION ---
+function handleNodeClick(id) {
+  if (selectedNode === null) {
+    selectedNode = id;
+    renderAll();
+  } else if (selectedNode === id) {
+    selectedNode = null;
+    renderAll();
+  } else {
+    // Create or select existing connection
+    const existingIdx = connections.findIndex(c =>
+      (c.from === selectedNode && c.to === id) || (c.from === id && c.to === selectedNode)
+    );
+    if (existingIdx >= 0) {
+      selectedNode = null;
+      renderAll();
+      openModal(existingIdx);
+    } else {
+      connections.push({ from: selectedNode, to: id, note: '' });
+      const newIdx = connections.length - 1;
+      selectedNode = null;
+      renderAll();
+      openModal(newIdx);
+    }
+  }
+}
+
+function openModal(connIdx) {
+  editingConnection = connIdx;
+  const conn = connections[connIdx];
+  const from = projects.find(p => p.id === conn.from);
+  const to = projects.find(p => p.id === conn.to);
+  modalTitle.textContent = 'Zusammenarbeit beschreiben';
+  modalSubtitle.textContent = `${from.name} ↔ ${to.name}`;
+  modalText.value = conn.note || '';
+  modalOverlay.classList.add('active');
+  setTimeout(() => modalText.focus(), 100);
+}
+
+function closeModal() {
+  modalOverlay.classList.remove('active');
+  editingConnection = null;
+}
+
+btnSave.addEventListener('click', () => {
+  if (editingConnection !== null) {
+    connections[editingConnection].note = modalText.value.trim();
+    renderAll();
+  }
+  closeModal();
+});
+
+btnCancel.addEventListener('click', closeModal);
+
+btnDelete.addEventListener('click', () => {
+  if (editingConnection !== null) {
+    connections.splice(editingConnection, 1);
+    renderAll();
+  }
+  closeModal();
+});
+
+modalOverlay.addEventListener('click', (e) => {
+  if (e.target === modalOverlay) closeModal();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (modalOverlay.classList.contains('active')) {
+      closeModal();
+    } else {
+      selectedNode = null;
+      renderAll();
+    }
+  }
+  if (e.key === 'Enter' && e.ctrlKey && modalOverlay.classList.contains('active')) {
+    btnSave.click();
+  }
+});
+
+// Canvas click to deselect
+canvas.addEventListener('click', (e) => {
+  if (e.target === canvas || e.target === svg) {
+    selectedNode = null;
+    renderAll();
+  }
+});
+
+// --- INIT & RESIZE ---
+function init() {
+  layoutNodes();
+  renderAll();
+}
+
+window.addEventListener('resize', () => {
+  layoutNodes();
+  renderAll();
+});
+
+init();
+</script>
+</body>
+</html>
