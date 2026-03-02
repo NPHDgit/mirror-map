@@ -306,6 +306,38 @@
   .btn-delete { background: #6e2a2a; color: #faa; }
   .btn-delete:hover { background: #8a3a3a; }
 
+  .direction-picker {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .direction-picker button {
+    flex: 1;
+    padding: 8px 6px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: #12141f;
+    color: #aaa;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .direction-picker button:hover { border-color: #555; color: #ddd; }
+  .direction-picker button.active {
+    border-color: #5b8aff;
+    background: #1a2548;
+    color: #5b8aff;
+  }
+  .direction-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #666;
+    margin-bottom: 6px;
+  }
+
   .instructions {
     position: fixed;
     bottom: 16px;
@@ -375,6 +407,12 @@
     <div class="modal">
       <h2 id="modalTitle">Describe Collaboration</h2>
       <div class="subtitle" id="modalSubtitle"></div>
+      <div class="direction-label">Direction</div>
+      <div class="direction-picker" id="directionPicker">
+        <button data-dir="both" class="active" id="dirBoth">&#8596; Bidirectional</button>
+        <button data-dir="forward" id="dirForward">&#8594; A &rarr; B</button>
+        <button data-dir="reverse" id="dirReverse">&#8592; B &rarr; A</button>
+      </div>
       <textarea id="modalText" placeholder="Describe the collaboration between these projects..."></textarea>
       <div class="modal-actions">
         <button class="btn-delete" id="btnDelete" style="margin-right:auto">Remove</button>
@@ -499,14 +537,37 @@ function renderNodes() {
   });
 }
 
+function drawArrowhead(x1, y1, x2, y2, color, nodeRadius) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return;
+  const ux = dx / len, uy = dy / len;
+  // Position arrow tip at edge of target node
+  const tipX = x2 - ux * nodeRadius;
+  const tipY = y2 - uy * nodeRadius;
+  const size = 10;
+  const angle = Math.atan2(dy, dx);
+  const a1 = angle + Math.PI * 0.82;
+  const a2 = angle - Math.PI * 0.82;
+  const p1x = tipX + size * Math.cos(a1), p1y = tipY + size * Math.sin(a1);
+  const p2x = tipX + size * Math.cos(a2), p2y = tipY + size * Math.sin(a2);
+  const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  arrow.setAttribute('points', `${tipX},${tipY} ${p1x},${p1y} ${p2x},${p2y}`);
+  arrow.setAttribute('fill', color);
+  arrow.setAttribute('fill-opacity', '0.8');
+  svg.appendChild(arrow);
+}
+
 function renderConnections() {
   svg.innerHTML = '';
   document.querySelectorAll('.connection-label').forEach(l => l.remove());
+  const nodeRadius = 62;
   connections.forEach((conn, idx) => {
     const from = projects.find(p => p.id === conn.from);
     const to = projects.find(p => p.id === conn.to);
     if (!from || !to) return;
     const color = (from.type === 'zp' || to.type === 'zp') ? '#8a5abf' : '#4a6aaf';
+    const dir = conn.direction || 'both';
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', from.x); line.setAttribute('y1', from.y);
     line.setAttribute('x2', to.x); line.setAttribute('y2', to.y);
@@ -515,6 +576,13 @@ function renderConnections() {
     line.style.cursor = 'pointer'; line.style.pointerEvents = 'stroke';
     line.addEventListener('click', () => openModal(idx));
     svg.appendChild(line);
+    // Draw arrowheads based on direction
+    if (dir === 'forward' || dir === 'both') {
+      drawArrowhead(from.x, from.y, to.x, to.y, color, nodeRadius);
+    }
+    if (dir === 'reverse' || dir === 'both') {
+      drawArrowhead(to.x, to.y, from.x, from.y, color, nodeRadius);
+    }
     if (conn.note) {
       const lbl = document.createElement('div');
       lbl.className = 'connection-label';
@@ -545,7 +613,7 @@ function handleNodeClick(id) {
     const existingIdx = connections.findIndex(c =>
       (c.from === selectedNode && c.to === id) || (c.from === id && c.to === selectedNode));
     if (existingIdx >= 0) { selectedNode = null; renderAll(); openModal(existingIdx); }
-    else { connections.push({ from: selectedNode, to: id, note: '' }); const newIdx = connections.length - 1; selectedNode = null; renderAll(); openModal(newIdx); }
+    else { connections.push({ from: selectedNode, to: id, note: '', direction: 'both' }); const newIdx = connections.length - 1; selectedNode = null; renderAll(); openModal(newIdx); }
   }
 }
 
@@ -555,8 +623,15 @@ function openModal(connIdx) {
   const from = projects.find(p => p.id === conn.from);
   const to = projects.find(p => p.id === conn.to);
   modalTitle.textContent = 'Describe Collaboration';
-  modalSubtitle.textContent = `${from.name} \u2194 ${to.name}`;
+  modalSubtitle.textContent = `${from.label} (${from.name}) \u2194 ${to.label} (${to.name})`;
   modalText.value = conn.note || '';
+  // Set direction buttons
+  const dir = conn.direction || 'both';
+  document.querySelectorAll('#directionPicker button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`#directionPicker button[data-dir="${dir}"]`).classList.add('active');
+  // Update direction button labels with actual project names
+  document.getElementById('dirForward').innerHTML = `&#8594; ${from.label} &rarr; ${to.label}`;
+  document.getElementById('dirReverse').innerHTML = `&#8592; ${to.label} &rarr; ${from.label}`;
   modalOverlay.classList.add('active');
   setTimeout(() => modalText.focus(), 100);
 }
@@ -579,8 +654,21 @@ function initApp() {
   infoPanelName = document.getElementById('infoPanelName');
   infoPanelDesc = document.getElementById('infoPanelDesc');
 
+  // Direction picker logic
+  document.querySelectorAll('#directionPicker button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#directionPicker button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
   btnSave.addEventListener('click', () => {
-    if (editingConnection !== null) { connections[editingConnection].note = modalText.value.trim(); renderAll(); }
+    if (editingConnection !== null) {
+      connections[editingConnection].note = modalText.value.trim();
+      const activeDir = document.querySelector('#directionPicker button.active');
+      connections[editingConnection].direction = activeDir ? activeDir.dataset.dir : 'both';
+      renderAll();
+    }
     closeModal();
   });
   btnCancel.addEventListener('click', closeModal);
