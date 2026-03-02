@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MIRROR – Projekt-Verbindungen</title>
+<title>MIRROR – Project Connections</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -346,9 +346,9 @@
 <div id="loginScreen">
   <div class="login-box">
     <h1>MIRROR</h1>
-    <div class="login-subtitle">Meningioma Research Unit – Kollaborationskarte</div>
-    <input type="password" id="passwordInput" placeholder="Passwort eingeben" autocomplete="off">
-    <button id="loginBtn">Zugang</button>
+    <div class="login-subtitle">Meningioma Research Unit – Collaboration Map</div>
+    <input type="password" id="passwordInput" placeholder="Enter password" autocomplete="off">
+    <button id="loginBtn">Access</button>
     <div class="login-error" id="loginError"></div>
   </div>
 </div>
@@ -357,7 +357,7 @@
 <div id="app">
   <div class="header">
     <h1>MIRROR – Meningioma Research Unit</h1>
-    <p>Kollaborationskarte der Subprojekte & Z-Projekte</p>
+    <p>Collaboration Map of Subprojects & Z-Projects</p>
   </div>
 
   <div class="canvas-container" id="canvas">
@@ -373,28 +373,28 @@
 
   <div class="modal-overlay" id="modalOverlay">
     <div class="modal">
-      <h2 id="modalTitle">Zusammenarbeit beschreiben</h2>
+      <h2 id="modalTitle">Describe Collaboration</h2>
       <div class="subtitle" id="modalSubtitle"></div>
-      <textarea id="modalText" placeholder="Beschreibe die Zusammenarbeit zwischen diesen Projekten..."></textarea>
+      <textarea id="modalText" placeholder="Describe the collaboration between these projects..."></textarea>
       <div class="modal-actions">
-        <button class="btn-delete" id="btnDelete" style="margin-right:auto">Entfernen</button>
-        <button class="btn-cancel" id="btnCancel">Abbrechen</button>
-        <button class="btn-save" id="btnSave">Speichern</button>
+        <button class="btn-delete" id="btnDelete" style="margin-right:auto">Remove</button>
+        <button class="btn-cancel" id="btnCancel">Cancel</button>
+        <button class="btn-save" id="btnSave">Save</button>
       </div>
     </div>
   </div>
 
   <div class="instructions">
-    <span><span class="key">Klick</span> Projekt auswählen</span>
-    <span><span class="key">2× Klick</span> Verbindung erstellen</span>
-    <span><span class="key">Klick auf Linie/Label</span> Notiz bearbeiten</span>
-    <span><span class="key">ESC</span> Auswahl aufheben</span>
+    <span><span class="key">Click</span> Select project</span>
+    <span><span class="key">2× Click</span> Create connection</span>
+    <span><span class="key">Click line/label</span> Edit note</span>
+    <span><span class="key">ESC</span> Deselect</span>
   </div>
 </div>
 
 <script>
 // --- PASSWORD PROTECTION (SHA-256 hash comparison) ---
-const PASS_HASH = 'd13e701e470d51f0a7e141a7ee71d4b41a0bd47aaea9d1b9649c92122bd9d790';
+const PASS_HASH = 'ffce6a8af578b957a2343bc2949ac03ba1331e0dd470c14e9e8a57bee881f478';
 
 async function sha256(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
@@ -416,7 +416,7 @@ async function attemptLogin() {
     initApp();
   } else {
     passwordInput.classList.add('error');
-    loginError.textContent = 'Falsches Passwort';
+    loginError.textContent = 'Incorrect password';
     setTimeout(() => {
       passwordInput.classList.remove('error');
       loginError.textContent = '';
@@ -431,23 +431,23 @@ setTimeout(() => passwordInput.focus(), 100);
 // --- APP LOGIC ---
 const projects = [
   { id: 'sp1', label: 'SP 1', name: 'Sahm / Berghaus', type: 'wp',
-    desc: 'Untersucht wirts- und tumorspezifische Treiber der Meningeom-Heterogenität mittels KI-gestützter räumlicher und Einzelzell-Profiling-Methoden. Nutzt ein Archiv von über 6.000 Meningeomen mit Methylierungsdaten. Entwickelt KI-Modelle auf H&E-Schnitten zur molekularen Diagnosebestimmung. Analysiert geschlechts- und altersspezifische Unterschiede in Tumorbiologie und Mikroumgebung.' },
+    desc: 'Investigates host- and tumor-specific drivers of meningioma heterogeneity using AI-powered spatial and single-cell profiling methods. Utilizes an archive of over 6,000 meningiomas with methylation data. Develops AI models on H&E sections for molecular diagnosis determination. Analyzes sex- and age-specific differences in tumor biology and microenvironment.' },
   { id: 'sp2', label: 'SP 2', name: 'Herold-Mende / Warta', type: 'wp',
-    desc: 'Erforscht geschlechts- und altersbedingte Unterschiede der Tumormikroumgebung und deren Einfluss auf die Therapiesensitivität. Setzt Tumororganoide und Wirkstoff-Screenings ein, um immuntherapeutische Ansätze in vitro zu testen. Phänotypisiert Immuninfiltrate und integriert Multi-Omics-Daten. Stellt eine umfangreiche Biobank mit Patientengewebe und Blutproben bereit.' },
+    desc: 'Explores sex- and age-related differences of the tumor microenvironment and their influence on therapy sensitivity. Employs tumor organoids and drug screenings to test immunotherapeutic approaches in vitro. Phenotypes immune infiltrates and integrates multi-omics data. Provides an extensive biobank with patient tissue and blood samples.' },
   { id: 'sp3', label: 'SP 3', name: 'Morrison / Mawrin', type: 'wp',
-    desc: 'Modelliert umwelt- und altersbedingte Meningeom-Treiber anhand von NF2-mutierten Tumoren. Kombiniert strukturelle, zelluläre und Mausmodelle mit Zebrafisch-Studien. Erforscht pädiatrische Meningeome und neue therapeutische Zielstrukturen. Führt metabolomische Analysen durch und untersucht die Rolle des Alterns in der Tumorentstehung.' },
+    desc: 'Models environmental and age-related meningioma drivers based on NF2-mutated tumors. Combines structural, cellular, and mouse models with zebrafish studies. Investigates pediatric meningiomas and novel therapeutic targets. Conducts metabolomic analyses and examines the role of aging in tumorigenesis.' },
   { id: 'sp4', label: 'SP 4', name: 'Prinz / Sankowski', type: 'wp',
-    desc: 'Kartiert Herkunft, Schicksal und lokale Interaktionen myeloider Zellsubpopulationen im Meningeom. Nutzt hochdimensionale Techniken wie räumliche und Einzelzell-Sequenzierung. Verwendet transgene Mausmodelle und syngene Meningeom-Modelle für funktionelle Analysen. Liefert Erkenntnisse zur Immunlandschaft des ZNS über Hirntumoren hinaus.' },
+    desc: 'Maps origin, fate, and local interactions of myeloid cell subpopulations in meningioma. Utilizes high-dimensional techniques such as spatial and single-cell sequencing. Employs transgenic mouse models and syngeneic meningioma models for functional analyses. Provides insights into the CNS immune landscape beyond brain tumors.' },
   { id: 'sp5', label: 'SP 5', name: 'Ricklefs / Lamszus', type: 'wp',
-    desc: 'Untersucht extrazelluläre Vesikel (EVs) als Biomarker und Modulatoren der Tumor-Immunzell-Kommunikation bei Meningeom-Patienten. Entwickelt Liquid-Biopsy-Ansätze für die longitudinale Überwachung von zirkulierenden EVs. Analysiert DNA-Methylierungssignaturen zur Tumorklassifikation. Führt Anreicherungs- und Detektionsprotokolle für tumorspezifische EVs ein.' },
+    desc: 'Investigates extracellular vesicles (EVs) as biomarkers and modulators of tumor-immune cell communication in meningioma patients. Develops liquid biopsy approaches for longitudinal monitoring of circulating EVs. Analyzes DNA methylation signatures for tumor classification. Introduces enrichment and detection protocols for tumor-specific EVs.' },
   { id: 'sp6', label: 'SP 6', name: 'Bernhardt / Abdollahi', type: 'wp',
-    desc: 'Reprogrammiert die Tumor-Immun-Mikroumgebung durch Partikelbestrahlung (Protonentherapie). Führt eine systematische radiobiologische Charakterisierung von Meningeomen durch. Untersucht die Evolution der Tumormikroumgebung unter Strahlentherapie. Liefert longitudinale Multiskalen-Daten von bestrahlten Patienten.' },
+    desc: 'Reprograms the tumor-immune microenvironment through particle irradiation (proton therapy). Conducts systematic radiobiological characterization of meningiomas. Investigates the evolution of the tumor microenvironment under radiation therapy. Provides longitudinal multi-scale data from irradiated patients.' },
   { id: 'sp7', label: 'SP 7', name: 'Reifenberger / Qin / Dietrich', type: 'wp',
-    desc: 'Erforscht die Rolle langer nicht-kodierender RNAs (lncRNAs) in der Meningeom-Evolution und Therapieantwort. Nutzt CODEX-Multiplex-Immunfluoreszenz und Immunrezeptor-Repertoire-Analysen. Führt ex-vivo-Wirkstoffscreenings für personalisierte Behandlungsdesigns durch. Stellt eine der größten Hirntumor-Gewebebanken bereit.' },
+    desc: 'Explores the role of long non-coding RNAs (lncRNAs) in meningioma evolution and therapy response. Utilizes CODEX multiplex immunofluorescence and immune receptor repertoire analyses. Conducts ex-vivo drug screenings for personalized treatment designs. Provides one of the largest brain tumor tissue banks.' },
   { id: 'zg', label: 'Z-G', name: 'Sahm / Bludau', type: 'zp',
-    desc: 'Zentrales Serviceprojekt für die standardisierte Datengenerierung und -sammlung der gesamten Forschungsgruppe. Führt Einzelzell- und räumliche Sequenzierung, Long-Read-Sequenzierung und Proteinanalysen durch. Etabliert und pflegt die zentrale MIRROR-Datenbank. Optimiert Protokolle wie snRNA auf FFPE-Proben und RAPID-CNS-Nanopore.' },
+    desc: 'Central service project for standardized data generation and collection across the entire research group. Performs single-cell and spatial sequencing, long-read sequencing, and protein analyses. Establishes and maintains the central MIRROR database. Optimizes protocols such as snRNA on FFPE samples and RAPID-CNS nanopore.' },
   { id: 'za', label: 'Z-A', name: 'Heiland / Yabo', type: 'zp',
-    desc: 'Zentrales Serviceprojekt für die projektübergreifende, multidimensionale Datenintegration. Entwickelt KI-gestützte Mustererkennung für biologisch und klinisch relevante Erkenntnisse. Integriert Multi-Omics-Daten aller Teilprojekte in eine speziesübergreifende Referenz. Stellt bestehende Datensätze bereit und liefert neue Biomaterialien über die chirurgische Anbindung.' },
+    desc: 'Central service project for cross-project, multidimensional data integration. Develops AI-powered pattern recognition for biologically and clinically relevant insights. Integrates multi-omics data from all subprojects into a cross-species reference. Provides existing datasets and delivers new biomaterials through surgical affiliation.' },
 ];
 
 let connections = [];
@@ -471,7 +471,7 @@ function layoutNodes() {
 
 function showInfo(p) {
   infoPanelLabel.textContent = p.label;
-  infoPanelBadge.textContent = p.type === 'wp' ? 'Subprojekt' : 'Z-Projekt';
+  infoPanelBadge.textContent = p.type === 'wp' ? 'Subproject' : 'Z-Project';
   infoPanelBadge.className = `info-badge ${p.type === 'wp' ? 'wp-badge' : 'zp-badge'}`;
   infoPanelName.textContent = p.name;
   infoPanelDesc.textContent = p.desc;
@@ -492,7 +492,7 @@ function renderNodes() {
     el.addEventListener('mouseleave', () => hideInfo());
     el.addEventListener('dblclick', (e) => {
       e.stopPropagation();
-      const newName = prompt('Projektname ändern:', p.name);
+      const newName = prompt('Change project name:', p.name);
       if (newName !== null && newName.trim()) { p.name = newName.trim(); renderAll(); }
     });
     canvas.appendChild(el);
@@ -554,7 +554,7 @@ function openModal(connIdx) {
   const conn = connections[connIdx];
   const from = projects.find(p => p.id === conn.from);
   const to = projects.find(p => p.id === conn.to);
-  modalTitle.textContent = 'Zusammenarbeit beschreiben';
+  modalTitle.textContent = 'Describe Collaboration';
   modalSubtitle.textContent = `${from.name} \u2194 ${to.name}`;
   modalText.value = conn.note || '';
   modalOverlay.classList.add('active');
