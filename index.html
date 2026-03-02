@@ -583,24 +583,16 @@ function renderConnections() {
     if (dir === 'reverse' || dir === 'both') {
       drawArrowhead(to.x, to.y, from.x, from.y, color, nodeRadius);
     }
-    if (conn.note) {
-      const lbl = document.createElement('div');
-      lbl.className = 'connection-label';
-      const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
-      lbl.style.left = (mx - 80) + 'px'; lbl.style.top = (my - 14) + 'px'; lbl.style.width = '160px';
-      lbl.textContent = conn.note;
-      lbl.addEventListener('click', () => openModal(idx));
-      canvas.appendChild(lbl);
-    } else {
-      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
-      circle.setAttribute('cx', mx); circle.setAttribute('cy', my);
-      circle.setAttribute('r', '5'); circle.setAttribute('fill', color);
-      circle.setAttribute('fill-opacity', '0.8');
-      circle.style.cursor = 'pointer'; circle.style.pointerEvents = 'auto';
-      circle.addEventListener('click', () => openModal(idx));
-      svg.appendChild(circle);
-    }
+    // Small dot indicator at midpoint (click to open modal)
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
+    circle.setAttribute('cx', mx); circle.setAttribute('cy', my);
+    circle.setAttribute('r', conn.note ? '6' : '5');
+    circle.setAttribute('fill', conn.note ? '#fff' : color);
+    circle.setAttribute('fill-opacity', conn.note ? '0.5' : '0.8');
+    circle.style.cursor = 'pointer'; circle.style.pointerEvents = 'auto';
+    circle.addEventListener('click', () => openModal(idx));
+    svg.appendChild(circle);
   });
 }
 
